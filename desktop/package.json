@@ -1,0 +1,25 @@
+{
+  "name": "fir-analyzer-desktop",
+  "productName": "FIR Analyzer",
+  "version": "1.0.0",
+  "description": "Desktop wrapper for the hosted Forensic FIR Analyzer website.",
+  "author": "Uttpal Tripathy",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.uttpaltripathy.firanalyzer",
+    "productName": "FIR Analyzer",
+    "files": ["main.js", "config.json", "offline.html"],
+    "directories": { "output": "dist" },
+    "win": { "target": "portable", "signAndEditExecutable": false },
+    "portable": { "artifactName": "FIR-Analyzer-${version}-portable.exe" }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Forensic FIR Analyzer",
+  "description": "An AI-powered tool for parsing and extracting critical threat data and 'stress words' from First Information Reports.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
