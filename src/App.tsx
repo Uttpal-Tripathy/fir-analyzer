@@ -111,6 +111,21 @@ export default function App() {
     initialWorkspace.current?.targetLanguage || 'English'
   );
   const [isTranslating, setIsTranslating] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setAiEnabled(data ? Boolean(data.aiEnabled) : null))
+      .catch(() => setAiEnabled(null));
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // Auto-save telemetry state
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'restored'>(
@@ -201,6 +216,7 @@ export default function App() {
 
   const handleLanguageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLang = e.target.value;
+    const prevLang = targetLanguage;
     setTargetLanguage(newLang);
 
     if (result && newLang !== 'English') {
@@ -215,7 +231,8 @@ export default function App() {
         if (res.ok) {
           setResult(data);
         } else {
-          console.error(data.error);
+          setTargetLanguage(prevLang);
+          setNotice(data?.error || `Translation to ${newLang} is unavailable right now.`);
         }
       } catch (err) {
         console.error("Translation error", err);
@@ -341,7 +358,8 @@ export default function App() {
       summary: item.summary,
       timeline: item.timeline,
       locationDetails: item.locationDetails,
-      evidenceItems: item.evidenceItems
+      evidenceItems: item.evidenceItems,
+      analysisEngine: item.analysisEngine
     });
     setError(null);
     setActiveTab('analysis');
@@ -459,6 +477,15 @@ export default function App() {
               <span>Main Screen</span>
             </button>
           )}
+          {aiEnabled === false && (
+            <div
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/15 border border-amber-500/40 text-[11px] font-bold uppercase tracking-wider text-amber-300 print:hidden"
+              title="No GEMINI_API_KEY is configured. Seeded cases open in full; new FIR text is analysed by the built-in offline rule engine."
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              Demo Mode
+            </div>
+          )}
           {/* Auto-Save Status Indicator */}
           <div
             className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md bg-slate-800/90 border border-slate-700 text-[11px] text-slate-300 print:hidden"
@@ -573,6 +600,24 @@ export default function App() {
 
       {/* Floating Chatbot Component */}
       <Chatbot firContext={firText} />
+
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            role="status"
+            className="fixed bottom-6 left-6 z-50 max-w-sm flex items-start gap-3 rounded-lg bg-slate-900 text-slate-100 border border-slate-700 shadow-lg px-4 py-3 text-sm print:hidden"
+          >
+            <Globe className="w-4 h-4 mt-0.5 text-amber-400 shrink-0" />
+            <span className="flex-1">{notice}</span>
+            <button onClick={() => setNotice(null)} className="text-slate-400 hover:text-white" aria-label="Dismiss">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       <footer className="bg-slate-200 dark:bg-slate-900 border-t border-slate-300 dark:border-slate-800 px-8 py-3 text-[10px] text-slate-500 dark:text-slate-400 flex justify-between mt-auto print:bg-white print:border-t print:border-slate-300 print:text-black print:mt-12 shrink-0 relative z-10">
         <span>CONFIDENTIAL • UNIFIED CRIME AND CRIMINAL TRACKING NETWORK (CCTNS)</span>

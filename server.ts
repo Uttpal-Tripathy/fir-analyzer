@@ -5,6 +5,14 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality, ThinkingLevel, LiveServerMessage } from "@google/genai";
 import { WebSocketServer, WebSocket } from "ws";
 import dotenv from "dotenv";
+import {
+  hasGeminiKey,
+  demoAnalyze,
+  demoChatReply,
+  demoClassifyEvidence,
+  demoGrounding,
+  DEMO_MODE_NOTE,
+} from "./src/demoEngine";
 
 dotenv.config();
 
@@ -13,8 +21,8 @@ let aiClient: GoogleGenAI | null = null;
 function getAIClient(): GoogleGenAI {
   if (!aiClient) {
     const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("GEMINI_API_KEY environment variable is required");
+    if (!hasGeminiKey() || !key) {
+      throw new Error("This feature needs a Gemini API key. The app is running in demo mode (GEMINI_API_KEY is not configured).");
     }
     aiClient = new GoogleGenAI({
       apiKey: key,
@@ -102,6 +110,11 @@ async function startServer() {
 
   app.use(express.json({ limit: "50mb" }));
 
+  // API Route: Runtime status (lets the UI show a demo-mode badge)
+  app.get("/api/status", (_req, res) => {
+    res.status(200).json({ aiEnabled: hasGeminiKey() });
+  });
+
   // API Route: Analyze FIR
   app.post("/api/analyze-fir", async (req, res) => {
     try {
@@ -110,6 +123,15 @@ async function startServer() {
 
       if (!firText && !inlineData) {
         return res.status(400).json({ error: "Invalid or missing firText or inlineData" });
+      }
+
+      if (!hasGeminiKey()) {
+        if (!firText) {
+          return res.status(422).json({
+            error: "Document analysis needs a Gemini API key. In demo mode, paste the FIR text or pick a demo sample instead.",
+          });
+        }
+        return res.status(200).json(demoAnalyze(firText));
       }
 
       const ai = getAIClient();
@@ -265,7 +287,7 @@ async function startServer() {
       const jsonStr = response?.text?.trim() || "{}";
       const parsedData = JSON.parse(jsonStr);
 
-      res.status(200).json(parsedData);
+      res.status(200).json({ ...parsedData, analysisEngine: "gemini" });
     } catch (error) {
       console.error("Gemini API Error:", error);
       res.status(500).json({
@@ -282,6 +304,20 @@ async function startServer() {
 
       if (!message || typeof message !== "string") {
         return res.status(400).json({ error: "Invalid or missing message" });
+      }
+
+      if (!hasGeminiKey()) {
+        const groundingLinks =
+          groundingMode === "maps"
+            ? demoGrounding("maps", {}).groundingLinks
+            : groundingMode === "search"
+              ? [{ uri: `https://www.google.com/search?q=${encodeURIComponent(message)}`, title: "Search this question on Google", type: "web" }]
+              : [];
+        return res.status(200).json({
+          reply: `${demoChatReply(message, firContext)}\n\n${DEMO_MODE_NOTE}`,
+          groundingLinks,
+          modelUsed: "offline-demo",
+        });
       }
 
       const ai = getAIClient();
@@ -388,9 +424,13 @@ async function startServer() {
   // API Route: Search Grounding & Maps Grounding Intelligence for AnalysisView
   app.post("/api/grounding-intel", async (req, res) => {
     try {
-      const { mode, query, latLng } = req.body;
+      const { mode, query, latLng, context } = req.body;
       if (!query || typeof query !== "string") {
         return res.status(400).json({ error: "Missing query" });
+      }
+
+      if (!hasGeminiKey()) {
+        return res.status(200).json(demoGrounding(mode === "maps" ? "maps" : "search", context || {}));
       }
 
       const ai = getAIClient();
@@ -491,6 +531,12 @@ async function startServer() {
 
       if (language === "English") {
         return res.status(200).json(result);
+      }
+
+      if (!hasGeminiKey()) {
+        return res.status(503).json({
+          error: `Translation to ${language} needs a Gemini API key. The app is running in demo mode, so results stay in English.`,
+        });
       }
 
       const ai = getAIClient();
@@ -606,6 +652,10 @@ async function startServer() {
       const { firText, customItemText } = req.body;
       if (!firText && !customItemText) {
         return res.status(400).json({ error: "Missing firText or customItemText" });
+      }
+
+      if (!hasGeminiKey()) {
+        return res.status(200).json(demoClassifyEvidence(firText || "", customItemText));
       }
 
       const ai = getAIClient();

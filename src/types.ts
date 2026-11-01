@@ -80,6 +80,8 @@ export interface FirAnalysisResult {
   locationDetails?: LocationDetails;
   evidenceItems?: EvidenceItem[];
   witnessStatements?: WitnessStatement[];
+  /** Which engine produced the result: live Gemini, a seeded demo case, or the offline rule engine. */
+  analysisEngine?: 'gemini' | 'seeded-demo' | 'offline-rules';
 }
 
 export interface HistoryItem extends FirAnalysisResult {

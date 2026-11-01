@@ -294,7 +294,7 @@ export function Dashboard({
           policeStation: loc.policeStation || 'Sector PS',
           district: loc.district || 'District HQ',
           state: loc.state || 'State',
-          addressHint: loc.address || `${loc.policeStation}, ${loc.district}`,
+          addressHint: `${loc.policeStation}, ${loc.district}`,
           lat: loc.lat,
           lng: loc.lng,
           matchingCases: [h],
